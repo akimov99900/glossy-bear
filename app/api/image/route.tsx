@@ -5,108 +5,100 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const fid = searchParams.get('fid') || '888';
     
-    // Генерация цвета (HUE) на основе FID
-    // Мы берем базу розового (как на фото) и смещаем её
-    const seed = Number(fid) * 12345;
-    // Базовый цвет (на фото он где-то 350-360 или 0-10 hue)
-    const hueShift = (seed % 360); 
+    // Генерируем уникальный цвет кристаллов на основе FID
+    const seed = Number(fid) * 9999;
+    const hue = (seed % 360); 
     
-    const baseColor = `hsl(${hueShift}, 75%, 75%)`;     // Светлый тон (блики)
-    const midColor = `hsl(${hueShift}, 60%, 60%)`;      // Основной тон
-    const shadowColor = `hsl(${hueShift}, 60%, 40%)`;   // Тень
-    const darkShadow = `hsl(${hueShift}, 70%, 25%)`;    // Глубокая тень
+    // Цвета кристаллов (Swarovski Style)
+    // Base - основной цвет страз
+    // Light - цвет перелива (радужный)
+    const colorBase = `hsl(${hue}, 80%, 60%)`; 
+    const colorDark = `hsl(${hue}, 90%, 35%)`; 
 
-    // SVG рисуем вручную по контуру твоего фото (ракурс 3/4)
     const svg = `
       <svg width="800" height="800" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <!-- 1. Градиент Фарфора (Гладкий переход от света к тени) -->
-          <linearGradient id="bodyGrad" x1="20%" y1="0%" x2="80%" y2="100%">
-            <stop offset="0%" stop-color="${baseColor}"/>
-            <stop offset="40%" stop-color="${midColor}"/>
-            <stop offset="80%" stop-color="${shadowColor}"/>
-            <stop offset="100%" stop-color="${darkShadow}"/>
-          </linearGradient>
-          
-          <!-- 2. Жесткий блик (Студийный свет, как на лбу) -->
-          <filter id="glossFilter">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur"/>
-            <feSpecularLighting in="blur" surfaceScale="10" specularConstant="2.5" specularExponent="40" lighting-color="white" result="specOut">
-               <fePointLight x="300" y="-200" z="400"/>
+          <!-- 1. Текстура Кристаллов (NOISE) -->
+          <!-- Это создает эффект тысяч мелких граней -->
+          <filter id="crystalTexture" x="0%" y="0%" width="100%" height="100%">
+            <!-- Создаем шум (зерно) -->
+            <feTurbulence type="fractalNoise" baseFrequency="1.5" numOctaves="3" result="noise"/>
+            <!-- Добавляем контраст, чтобы зерна были четкими как камни -->
+            <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -9" in="noise" result="contrastNoise"/>
+            <!-- Смешиваем шум с цветом медведя -->
+            <feComposite operator="in" in="contrastNoise" in2="SourceGraphic" result="texturedBear"/>
+            <!-- Добавляем свет (Specularity) на грани камней -->
+            <feSpecularLighting in="contrastNoise" surfaceScale="15" specularConstant="1.2" specularExponent="25" lighting-color="#ffffff" result="sparkles">
+                <fePointLight x="-500" y="-500" z="1000"/>
             </feSpecularLighting>
-            <feComposite in="specOut" in2="SourceAlpha" operator="in" result="specOut"/>
+            <!-- Накладываем блеск на текстуру -->
+            <feComposite operator="in" in="sparkles" in2="SourceAlpha" result="sparklesClipped"/>
+            <feComposite operator="arithmetic" k1="0" k2="1" k3="1" k4="0" in="texturedBear" in2="sparklesClipped"/>
           </filter>
 
-          <!-- 3. Тень на полу -->
-          <radialGradient id="floorShadow" cx="50%" cy="50%" r="50%">
-             <stop offset="0%" stop-color="black" stop-opacity="0.3"/>
-             <stop offset="100%" stop-color="black" stop-opacity="0"/>
-          </radialGradient>
+          <!-- 2. Градиент перелива (Iridescence) - как бензин/радуга -->
+          <linearGradient id="rainbowSheen" x1="0%" y1="0%" x2="100%" y2="100%">
+             <stop offset="0%" stop-color="${colorBase}" stop-opacity="1"/>
+             <stop offset="50%" stop-color="${colorDark}" stop-opacity="1"/>
+             <stop offset="100%" stop-color="${colorBase}" stop-opacity="1"/>
+          </linearGradient>
+          
+          <!-- 3. Тень на фоне -->
+           <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+            <feOffset dx="5" dy="10"/>
+            <feComponentTransfer><feFuncA type="linear" slope="0.4"/></feComponentTransfer>
+            <feMerge>
+                <feMergeNode/>
+                <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
         </defs>
 
-        <!-- Фон (Мрамор/Студия) -->
-        <rect width="800" height="800" fill="#f5f5f7"/>
+        <!-- Фон: Студийный мрамор -->
+        <radialGradient id="bg" cx="50%" cy="50%" r="70%">
+            <stop offset="0%" stop-color="#f8f9fa"/>
+            <stop offset="100%" stop-color="#dde1e7"/>
+        </radialGradient>
+        <rect width="800" height="800" fill="url(#bg)"/>
         
-        <!-- Тень под ногами -->
-        <ellipse cx="400" cy="720" rx="180" ry="40" fill="url(#floorShadow)" />
+        <!-- Пальмовая тень (для стиля как на фото) -->
+        <path d="M0 600 L800 400 L800 800 L0 800 Z" fill="black" opacity="0.05" filter="blur(20px)"/>
 
-        <!-- ГРУППА МЕДВЕДЯ (Сдвинута в центр) -->
-        <g transform="translate(150, 50) scale(0.9)">
-        
-          <!-- Правая нога (Дальняя) -->
-          <path d="M330 500 L330 650 Q330 700 360 720 L410 720 Q440 700 440 650 L440 520" fill="url(#bodyGrad)" stroke="${shadowColor}" stroke-width="1"/>
-          
-          <!-- Левая нога (Ближняя, чуть вперед) -->
-          <path d="M170 500 L170 660 Q170 730 220 740 L280 740 Q320 730 320 660 L320 520" fill="url(#bodyGrad)" />
-          <!-- Блик на колене -->
-          <ellipse cx="220" cy="600" rx="30" ry="60" fill="white" opacity="0.2" transform="rotate(-10 220 600)"/>
+        <!-- МЕДВЕДЬ (Сгруппированный, цельный силуэт) -->
+        <g transform="translate(180, 100) scale(0.85)" filter="url(#dropShadow)">
+            
+            <!-- Группа с текстурой кристаллов -->
+            <g fill="url(#rainbowSheen)" filter="url(#crystalTexture)">
+                
+                <!-- 1. Уши (Присоединены к голове) -->
+                <circle cx="100" cy="80" r="70" />
+                <circle cx="440" cy="80" r="70" />
 
-          <!-- Тело (Округлое, пузатое) -->
-          <path d="M150 350 Q140 550 250 550 L350 550 Q450 550 440 350 Q440 280 295 280 Q150 280 150 350" fill="url(#bodyGrad)" />
-          <!-- Блик на животе (как на фото) -->
-          <path d="M200 350 Q250 450 350 400" stroke="white" stroke-width="30" stroke-linecap="round" opacity="0.3" filter="blur(5px)"/>
+                <!-- 2. Руки (Свисают вдоль тела, единое целое) -->
+                <!-- Левая -->
+                <path d="M80 280 Q 40 320 40 400 Q 40 480 70 500 Q 100 480 110 400" />
+                <!-- Правая -->
+                <path d="M460 280 Q 500 320 500 400 Q 500 480 470 500 Q 440 480 430 400" />
 
-          <!-- Правая рука (Свисает) -->
-          <path d="M430 320 Q500 350 500 450 Q500 500 480 520" stroke="url(#bodyGrad)" stroke-width="70" stroke-linecap="round" fill="none"/>
-          
-          <!-- Левая рука (Ближе к нам) -->
-          <path d="M160 320 Q90 350 90 450 Q90 500 110 520" stroke="url(#bodyGrad)" stroke-width="70" stroke-linecap="round" fill="none"/>
-          <!-- Блик на плече -->
-          <ellipse cx="140" cy="320" rx="20" ry="30" fill="white" opacity="0.5"/>
+                <!-- 3. Ноги (Столбики, без разрывов) -->
+                <path d="M160 500 L 160 650 Q 160 700 200 700 L 230 700 Q 270 700 270 650 L 270 500" />
+                <path d="M290 500 L 290 650 Q 290 700 330 700 L 360 700 Q 400 700 400 650 L 400 500" />
 
-          <!-- ГОЛОВА (Сложная форма: широкие щеки, уже лоб) -->
-          <path d="M120 180 Q120 30 295 30 Q470 30 470 180 Q470 320 295 320 Q120 320 120 180" fill="url(#bodyGrad)" />
-          
-          <!-- Уши (Крупные, круглые, как локаторы) -->
-          <!-- Левое -->
-          <circle cx="120" cy="100" r="65" fill="url(#bodyGrad)" />
-          <circle cx="120" cy="100" r="45" fill="none" stroke="${shadowColor}" stroke-width="5" opacity="0.3"/> <!-- Внутренность -->
-          <!-- Блик на ухе -->
-          <circle cx="100" cy="80" r="20" fill="white" opacity="0.4" filter="blur(5px)"/>
-
-          <!-- Правое -->
-          <circle cx="470" cy="100" r="65" fill="url(#bodyGrad)" />
-          <circle cx="470" cy="100" r="45" fill="none" stroke="${shadowColor}" stroke-width="5" opacity="0.3"/>
-
-          <!-- ЛИЦО (Выпуклое рыльце) -->
-          <!-- Носовая часть (светлее) -->
-          <ellipse cx="295" cy="220" rx="70" ry="50" fill="white" opacity="0.2" filter="blur(10px)"/>
-          
-          <!-- Нос -->
-          <ellipse cx="295" cy="210" rx="15" ry="10" fill="${darkShadow}" />
-          
-          <!-- Блик на лбу (Самый яркий, как на фото) -->
-          <path d="M200 100 Q295 150 390 100" stroke="white" stroke-width="25" stroke-linecap="round" opacity="0.6" filter="blur(8px)"/>
-          <ellipse cx="250" cy="120" rx="30" ry="15" fill="white" opacity="0.8"/>
-          
-          <!-- Вертикальные линии (Рельеф головы как на фото) -->
-          <path d="M295 30 L295 100" stroke="white" stroke-width="2" opacity="0.3"/>
-
+                <!-- 4. Тело и Голова (Слиты воедино) -->
+                <!-- Рисуем как одну большую форму матрешки -->
+                <path d="M120 200 
+                         C 120 50 420 50 420 200 
+                         C 420 300 380 300 380 350
+                         C 420 380 420 550 270 550
+                         C 120 550 120 380 160 350
+                         C 160 300 120 300 120 200 Z" />
+            </g>
         </g>
-
-        <!-- Текст -->
-        <text x="400" y="760" font-family="Helvetica, Arial, sans-serif" font-weight="bold" font-size="20" text-anchor="middle" fill="#aaa" letter-spacing="4">
-          PORCELAIN #${fid}
+        
+        <!-- Текст FID (Брендинг) -->
+        <text x="400" y="750" font-family="Arial, sans-serif" font-weight="bold" font-size="18" text-anchor="middle" fill="#aaa" letter-spacing="3">
+            CRYSTAL #${fid}
         </text>
       </svg>
     `.trim();
