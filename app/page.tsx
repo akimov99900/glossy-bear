@@ -13,7 +13,7 @@ const config = createConfig({
 });
 const queryClient = new QueryClient();
 
-// !!! ЗАМЕНИ НА АДРЕС КОНТРАКТА ПОСЛЕ ДЕПЛОЯ !!!
+// !!! ВСТАВЬ СЮДА АДРЕС КОНТРАКТА (из Remix), если уже есть !!!
 const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000"; 
 
 function App() {
@@ -23,8 +23,13 @@ function App() {
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
   useEffect(() => {
-    sdk.actions.ready();
-    if (!isConnected) connect({ connector: injected() });
+    const init = async () => {
+      try {
+        await sdk.actions.ready();
+        if (!isConnected) connect({ connector: injected() });
+      } catch (e) { console.error(e); }
+    };
+    init();
   }, [isConnected, connect]);
 
   const mint = () => {
@@ -40,7 +45,7 @@ function App() {
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-zinc-950 font-sans text-white">
       <div className="w-full max-w-md bg-zinc-900 rounded-[40px] p-8 shadow-2xl border border-zinc-800 flex flex-col items-center relative overflow-hidden">
         
-        <!-- Фоновый блик -->
+        {/* Фоновый блик */}
         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-pink-500/10 to-transparent pointer-events-none"></div>
 
         <h1 className="text-4xl font-black mb-2 tracking-tighter italic">GLOSSY 3D</h1>
@@ -51,7 +56,7 @@ function App() {
         </div>
 
         {isSuccess ? (
-          <a href={\`https://opensea.io/assets/base/\${CONTRACT_ADDRESS}\`} target="_blank" className="w-full bg-green-500 text-black font-bold py-5 rounded-2xl text-center uppercase tracking-widest hover:bg-green-400 transition">View on OpenSea</a>
+          <a href={`https://opensea.io/assets/base/${CONTRACT_ADDRESS}`} target="_blank" className="w-full bg-green-500 text-black font-bold py-5 rounded-2xl text-center uppercase tracking-widest hover:bg-green-400 transition">View on OpenSea</a>
         ) : (
           <button 
             onClick={mint}
