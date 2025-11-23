@@ -1,0 +1,16 @@
+{
+  "accountAssociation": {
+    "header": "eyJmaWQiOjM3OTk2OCwidHlwZSI6ImF1dGgiLCJrZXkiOiIweGQ1MzZCNTRBNDFmN0MzOWZlNWZEY0I1YzgyZTNlQkJBMTMxODc2MzEifQ",
+    "payload": "eyJkb21haW4iOiJnbG9zc3ktYmVhci04Zmp0LnZlcmNlbC5hcHAifQ",
+    "signature": "NlDuo20K2ePjPzt4LhMCNaTaOlPKts1iwL4gdazMd5ldpsaf7A0+jnQ0Ko50o2NyDYaYCNvoX+iiGg6nxx+5Hhs="
+  },
+  "frame": {
+    "version": "1",
+    "name": "Diamond Bear",
+    "iconUrl": "https://glossy-bear-8fjt.vercel.app/api/image?fid=1",
+    "homeUrl": "https://glossy-bear-8fjt.vercel.app",
+    "splashImageUrl": "https://glossy-bear-8fjt.vercel.app/api/image?fid=1",
+    "splashBackgroundColor": "#000000",
+    "webhookUrl": "https://glossy-bear-8fjt.vercel.app/api/webhook"
+  }
+}
