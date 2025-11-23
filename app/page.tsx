@@ -15,7 +15,7 @@ const queryClient = new QueryClient();
 
 // !!! ВАЖНО: ВСТАВЬ СЮДА СВОЙ АДРЕС КОНТРАКТА ИЗ REMIX !!!
 // Тот, который ты деплоил для GlossyBear (или создай новый, если хочешь сменить название)
-const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000"; 
+const CONTRACT_ADDRESS = "0xa9E4471dA1c6A1eaF22f2a35385F28537F7e715b"; 
 
 function App() {
   const { isConnected } = useAccount();
