@@ -39,10 +39,7 @@ export async function GET(request: Request) {
         // Версия модели Flux-Schnell
         version: "5bf243909ad9473b96bf423b47334863346549241b711e2f3d61a8a29b634812",
         input: {
-          prompt: prompt,
-          aspect_ratio: "1:1",   // Квадрат
-          output_format: "png",
-          go_fast: true          // Режим скорости
+        image: `https://i.postimg.cc/MptNPZCX/ref.jpg`,
         },
       }),
     });
