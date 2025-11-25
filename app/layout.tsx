@@ -1,21 +1,25 @@
 import type { Metadata } from 'next'
 
+// ТВОЙ ДОМЕН (Проверь, чтобы был точный!)
+const BASE_URL = 'https://glossy-bear-8fjt.vercel.app';
+const IMAGE_URL = 'https://i.postimg.cc/MptNPZCX/ref.jpg'; // Твоя картинка
+
 export const metadata: Metadata = {
-  title: 'Crystal Bear Gen',
-  description: 'Mint your unique Swarovski-style NFT based on your FID',
+  metadataBase: new URL(BASE_URL),
+  title: 'Chrome Bear Gen',
+  description: 'Exclusive Liquid Metal Collection on Base',
   openGraph: {
-    title: 'Crystal Bear Gen',
-    description: 'Mint your unique Swarovski-style NFT based on your FID',
-    images: ['https://glossy-bear-8fjt.vercel.app/api/image?fid=888'], // Покажем красивого 888 как превью
+    title: 'Chrome Bear Gen',
+    description: 'Exclusive Liquid Metal Collection on Base. Mint yours now.',
+    images: [IMAGE_URL], // Картинка для Твиттера/Телеграма
   },
   other: {
     'fc:frame': 'vNext',
-    'fc:frame:image': 'glossy-bear-8fjt.vercel.app/api/image?fid=888', // Картинка для фрейма
+    'fc:frame:image': IMAGE_URL, // Картинка для Фаркастера (Главная!)
     'fc:frame:image:aspect_ratio': '1:1',
-    'fc:frame:button:1': 'Mint Crystal Bear',
+    'fc:frame:button:1': 'Mint Now',
     'fc:frame:button:1:action': 'link',
-    // ВАЖНО: Здесь Vercel сам подставит твой домен, либо пропиши его вручную если хочешь жестко
-    'fc:frame:button:1:target': 'glossy-bear-8fjt.vercel.app', 
+    'fc:frame:button:1:target': BASE_URL,
   },
 }
 
