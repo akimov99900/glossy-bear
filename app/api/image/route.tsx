@@ -43,7 +43,7 @@ export async function GET(request: Request) {
         input: {
           prompt: prompt,
           // 👇👇👇 ВСТАВЬ СЮДА ССЫЛКУ НА НОВОГО СЕРЕБРЯНОГО МЕДВЕДЯ 👇👇👇
-          image: "https://i.postimg.cc/YOUR_LINK/silver-bear.jpg", 
+          image: "https://i.postimg.cc/MptNPZCX/ref.jpg", 
           // 👆👆👆 --------------------------------------------------- 👆👆👆
           prompt_strength: 0.65, // Чуть повысим, чтобы он сильнее держался за форму оригинала
           output_format: "png",
