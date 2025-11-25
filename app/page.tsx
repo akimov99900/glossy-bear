@@ -15,17 +15,19 @@ import { base } from 'wagmi/chains';
 import { injected, coinbaseWallet } from 'wagmi/connectors';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+// 1. Обновленный конфиг с поддержкой SSR
 const config = createConfig({
   chains: [base],
   connectors: [
-    injected(), 
-    coinbaseWallet({ appName: 'Chrome Bear' }) 
+    injected(),
+    coinbaseWallet({ appName: 'Chrome Bear' }),
   ],
   transports: { [base.id]: http() },
+  ssr: true, // Важно для Next.js
 });
+
 const queryClient = new QueryClient();
 
-// Твой адрес (Проверь, что он верный!)
 const CONTRACT_ADDRESS = "0x8f305239D8ae9158e9B8E0e179531837C4646568"; 
 
 const CONTRACT_ABI = [
@@ -35,8 +37,9 @@ const CONTRACT_ABI = [
 ] as const;
 
 function App() {
-  const { isConnected } = useAccount();
-  const { connectAsync } = useConnect(); // Используем Async, чтобы ждать подключения
+  const { isConnected, address } = useAccount();
+  // Получаем список доступных кошельков
+  const { connectAsync, connectors } = useConnect(); 
   const { sendTransaction, isPending, data: hash, error: mintError } = useSendTransaction();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
   const [userFid, setUserFid] = useState('1');
@@ -63,26 +66,35 @@ function App() {
     init();
   }, []);
 
-  // ГЛАВНАЯ ФУНКЦИЯ: ДЕЛАЕТ ВСЁ СРАЗУ
+  // ГЛАВНАЯ ФУНКЦИЯ (ИСПРАВЛЕННАЯ)
   const handleAction = async () => {
     try {
-      // 1. Если не подключены - подключаемся силой
+      console.log("Starting action...");
+      
+      // Шаг 1: Если не подключены - подключаемся
       if (!isConnected) {
-        try {
-            await connectAsync({ connector: injected() });
-        } catch (e) {
-            console.log("Connection retry or already connected");
+        // Берем первый доступный кошелек (обычно это Injected в Фаркастере)
+        const connector = connectors[0]; 
+        if (connector) {
+            console.log("Connecting to:", connector.name);
+            await connectAsync({ connector });
         }
       }
-      
-      // 2. Сразу после этого (или если уже были подключены) - МИНТИМ
+
+      // Шаг 2: Ждем небольшую паузу, чтобы Wagmi обновил состояние
+      await new Promise(r => setTimeout(r, 500));
+
+      // Шаг 3: Теперь точно вызываем минт
+      console.log("Sending transaction...");
       sendTransaction({
         to: CONTRACT_ADDRESS,
         value: BigInt(10000000000000), // 0.00001 ETH
         data: "0x1249c58b"
       });
+
     } catch (e) {
-      console.error("Action failed:", e);
+      console.error("Mint failed:", e);
+      // В реальном приложении тут можно показать тост с ошибкой
     }
   };
 
@@ -100,6 +112,11 @@ function App() {
           CHROME GEN
         </h1>
         
+        {/* Статус кошелька (для проверки) */}
+        <div className="text-[9px] text-slate-400 mb-4 font-mono">
+           {isConnected ? `CONNECTED: ${address?.slice(0,6)}...` : "READY TO CONNECT"}
+        </div>
+
         <div className="relative w-64 h-64 bg-gray-100 rounded-2xl overflow-hidden shadow-inner mb-6 border border-gray-200 flex items-center justify-center">
              <img src="https://i.postimg.cc/MptNPZCX/ref.jpg" className="w-full h-full object-cover" alt="Ref" />
              <div className="absolute top-2 right-2 bg-white/80 backdrop-blur px-2 py-1 rounded text-[10px] font-mono font-bold">FID: {userFid}</div>
@@ -117,7 +134,7 @@ function App() {
 
         {mintError && (
             <div className="w-full mb-4 p-2 bg-red-100 text-red-600 text-[10px] rounded text-center break-words">
-                {mintError.message.slice(0, 50)}...
+                {mintError.message.slice(0, 60)}...
             </div>
         )}
 
@@ -128,7 +145,6 @@ function App() {
         ) : isSoldOut ? (
           <button disabled className="w-full bg-gray-400 text-white font-bold py-4 rounded-full cursor-not-allowed">SOLD OUT</button>
         ) : (
-          // ЕДИНАЯ КНОПКА ДЛЯ ВСЕГО
           <button 
             onClick={handleAction}
             disabled={isPending || isConfirming}
