@@ -13,9 +13,6 @@ const config = createConfig({
 });
 const queryClient = new QueryClient();
 
-// !!! АДРЕС КОНТРАКТА !!!
-// Можешь оставить старый (если не хочешь деплоить новый), 
-// но лучше создать новый контракт с названием "Base Droid"
 const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000"; 
 
 function App() {
@@ -23,7 +20,7 @@ function App() {
   const { connect } = useConnect();
   const { sendTransaction, isPending, data: hash } = useSendTransaction();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
-  const [userFid, setUserFid] = useState('888');
+  const [userFid, setUserFid] = useState('1');
 
   useEffect(() => {
     const init = async () => {
@@ -47,55 +44,41 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-[#0a0a0a] font-mono text-zinc-300 relative">
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-[#e0e0e0] font-sans text-black relative">
       
-      {/* Сетка на фоне */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(30,30,30,0.5)_1px,transparent_1px),linear-gradient(90deg,rgba(30,30,30,0.5)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none"></div>
+      {/* Светлый фон с градиентом */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white to-gray-300 pointer-events-none"></div>
 
-      <div className="w-full max-w-md bg-[#111] border-2 border-[#333] rounded-none p-6 shadow-[10px_10px_0px_0px_rgba(40,40,40,1)] relative z-10 flex flex-col items-center">
+      <div className="w-full max-w-md bg-white/80 backdrop-blur-md rounded-[30px] p-8 shadow-2xl border border-white flex flex-col items-center relative z-10">
         
-        {/* Хедер в стиле терминала */}
-        <div className="w-full flex justify-between items-center mb-6 border-b border-[#333] pb-2">
-            <span className="text-orange-500 font-bold tracking-widest">PROTOCOL: DROID</span>
-            <span className="text-xs bg-zinc-800 px-2 py-1">SYS.ONLINE</span>
-        </div>
-
-        <h1 className="text-4xl font-black mb-2 text-zinc-100 tracking-tighter">BASE DROID</h1>
-        <p className="text-orange-700/80 mb-6 text-xs uppercase tracking-[0.2em]">Battle-Scarred Unit #{userFid}</p>
+        <h1 className="text-4xl font-bold mb-2 tracking-tight text-slate-800">CHROME</h1>
+        <p className="text-slate-500 mb-8 text-xs uppercase tracking-widest">Liquid Metal Collection</p>
         
         {/* Картинка */}
-        <div className="relative w-72 h-72 bg-[#050505] border border-orange-900/30 mb-8 flex items-center justify-center">
-             {/* Угловые маркеры */}
-             <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-orange-500"></div>
-             <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-orange-500"></div>
-             <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-orange-500"></div>
-             <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-orange-500"></div>
-
+        <div className="relative w-72 h-72 bg-gray-100 rounded-2xl overflow-hidden shadow-inner mb-8 border border-gray-200 flex items-center justify-center">
              <img 
                 src={`/api/image?fid=${userFid}`} 
-                className="w-full h-full object-contain filter contrast-125" 
-                alt="Droid" 
+                className="w-full h-full object-contain mix-blend-multiply" 
+                alt="Chrome Bear" 
              />
         </div>
 
         {isSuccess ? (
-          <a href={`https://opensea.io/assets/base/${CONTRACT_ADDRESS}`} target="_blank" className="w-full bg-green-700 text-black font-bold py-4 text-center hover:bg-green-600 transition uppercase tracking-widest border border-green-500">
-            UNIT ACQUIRED -> OPENSEA
+          <a href={`https://opensea.io/assets/base/${CONTRACT_ADDRESS}`} target="_blank" className="w-full bg-black text-white font-bold py-4 rounded-full text-center uppercase tracking-widest shadow-lg">
+            View on OpenSea
           </a>
         ) : (
           <button 
             onClick={mint}
             disabled={isPending || isConfirming}
-            className="w-full bg-orange-600 hover:bg-orange-500 text-black font-bold py-4 transition-all active:translate-y-1 uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed border border-orange-400"
+            className="w-full bg-gradient-to-r from-slate-700 to-black text-white font-bold py-4 rounded-full transition-all active:scale-95 shadow-xl uppercase tracking-widest disabled:opacity-50"
           >
-            {isPending ? 'INITIALIZING...' : 'MINT UNIT • 0.00001 ETH'}
+            {isPending ? 'Processing...' : 'Mint • 0.00001 ETH'}
           </button>
         )}
         
-        <div className="mt-6 text-[10px] text-zinc-600 flex gap-4 uppercase">
-           <span>SECURE: BASE</span>
-           <span>//</span>
-           <span>GEN: V3</span>
+        <div className="mt-6 text-[10px] text-slate-400 uppercase">
+           Unique ID: #{userFid}
         </div>
       </div>
     </div>
