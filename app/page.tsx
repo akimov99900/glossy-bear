@@ -13,28 +13,23 @@ const config = createConfig({
 });
 const queryClient = new QueryClient();
 
-// !!! ВАЖНО: ВСТАВЬ СЮДА СВОЙ АДРЕС КОНТРАКТА ИЗ REMIX !!!
-// Тот, который ты деплоил для GlossyBear (или создай новый, если хочешь сменить название)
-const CONTRACT_ADDRESS = "0xa9E4471dA1c6A1eaF22f2a35385F28537F7e715b"; 
+// !!! АДРЕС КОНТРАКТА !!!
+// Можешь оставить старый (если не хочешь деплоить новый), 
+// но лучше создать новый контракт с названием "Base Droid"
+const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000"; 
 
 function App() {
   const { isConnected } = useAccount();
   const { connect } = useConnect();
   const { sendTransaction, isPending, data: hash } = useSendTransaction();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
-  
-  // Сохраняем FID пользователя, чтобы показать именно ЕГО медведя
-  const [userFid, setUserFid] = useState('1');
+  const [userFid, setUserFid] = useState('888');
 
   useEffect(() => {
     const init = async () => {
       try {
         const context = await sdk.context;
-        // Если открыто в Warpcast, берем реальный FID юзера
-        if (context?.user?.fid) {
-          setUserFid(String(context.user.fid));
-        }
-        
+        if (context?.user?.fid) setUserFid(String(context.user.fid));
         sdk.actions.ready();
         if (!isConnected) connect({ connector: injected() });
       } catch (e) { console.error(e); }
@@ -46,72 +41,61 @@ function App() {
     if (!isConnected) { connect({ connector: injected() }); return; }
     sendTransaction({
       to: CONTRACT_ADDRESS,
-      value: BigInt(10000000000000), // 0.00001 ETH
+      value: BigInt(10000000000000), 
       data: "0x1249c58b"
     });
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-zinc-950 font-sans text-white relative overflow-hidden">
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-[#0a0a0a] font-mono text-zinc-300 relative">
       
-      {/* Фоновые эффекты */}
-      <div className="absolute top-[-20%] left-[-20%] w-[140%] h-[140%] bg-[radial-gradient(circle,rgba(236,72,153,0.1)_0%,rgba(0,0,0,0)_70%)] pointer-events-none"></div>
+      {/* Сетка на фоне */}
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(30,30,30,0.5)_1px,transparent_1px),linear-gradient(90deg,rgba(30,30,30,0.5)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none"></div>
 
-      <div className="w-full max-w-md bg-zinc-900/80 backdrop-blur-xl rounded-[32px] p-6 shadow-2xl border border-zinc-800 flex flex-col items-center relative z-10">
+      <div className="w-full max-w-md bg-[#111] border-2 border-[#333] rounded-none p-6 shadow-[10px_10px_0px_0px_rgba(40,40,40,1)] relative z-10 flex flex-col items-center">
         
-        <h1 className="text-3xl font-black mb-2 tracking-widest uppercase text-transparent bg-clip-text bg-gradient-to-r from-pink-300 via-purple-300 to-indigo-300 drop-shadow-lg">
-          CRYSTAL BEAR
-        </h1>
-        
-        {/* Блок с описанием для пользователя */}
-        <div className="w-full bg-zinc-800/50 rounded-xl p-3 mb-6 border border-zinc-700/50">
-          <ul className="space-y-2 text-xs text-zinc-300 font-medium tracking-wide">
-            <li className="flex items-center gap-2">
-              <span className="text-lg">💎</span> 
-              <span>Generated uniquely from <b>your FID</b></span>
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="text-lg">✨</span> 
-              <span>Swarovski style texture & iridescence</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="text-lg">🌊</span> 
-              <span>Instantly tradeable on <b>OpenSea</b></span>
-            </li>
-          </ul>
+        {/* Хедер в стиле терминала */}
+        <div className="w-full flex justify-between items-center mb-6 border-b border-[#333] pb-2">
+            <span className="text-orange-500 font-bold tracking-widest">PROTOCOL: DROID</span>
+            <span className="text-xs bg-zinc-800 px-2 py-1">SYS.ONLINE</span>
         </div>
+
+        <h1 className="text-4xl font-black mb-2 text-zinc-100 tracking-tighter">BASE DROID</h1>
+        <p className="text-orange-700/80 mb-6 text-xs uppercase tracking-[0.2em]">Battle-Scarred Unit #{userFid}</p>
         
-        {/* Картинка медведя */}
-        <div className="relative w-64 h-64 bg-gradient-to-b from-zinc-800 to-black rounded-2xl overflow-hidden shadow-2xl mb-6 border border-zinc-600 flex items-center justify-center group">
-             {/* Подставляем userFid, чтобы юзер видел СВОЕГО медведя */}
+        {/* Картинка */}
+        <div className="relative w-72 h-72 bg-[#050505] border border-orange-900/30 mb-8 flex items-center justify-center">
+             {/* Угловые маркеры */}
+             <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-orange-500"></div>
+             <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-orange-500"></div>
+             <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-orange-500"></div>
+             <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-orange-500"></div>
+
              <img 
                 src={`/api/image?fid=${userFid}`} 
-                className="w-full h-full object-contain transform group-hover:scale-105 transition-transform duration-700" 
-                alt="Your Bear" 
+                className="w-full h-full object-contain filter contrast-125" 
+                alt="Droid" 
              />
-             
-             {/* Бейджик с номером */}
-             <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur px-2 py-1 rounded-md text-[10px] text-white/70 font-mono border border-white/10">
-                #{userFid}
-             </div>
         </div>
 
         {isSuccess ? (
-          <a href={`https://opensea.io/assets/base/${CONTRACT_ADDRESS}`} target="_blank" className="w-full bg-green-500 hover:bg-green-400 text-black font-bold py-4 rounded-xl text-center uppercase tracking-widest transition shadow-[0_0_20px_rgba(34,197,94,0.3)]">
-            Success! View on OpenSea
+          <a href={`https://opensea.io/assets/base/${CONTRACT_ADDRESS}`} target="_blank" className="w-full bg-green-700 text-black font-bold py-4 text-center hover:bg-green-600 transition uppercase tracking-widest border border-green-500">
+            UNIT ACQUIRED -> OPENSEA
           </a>
         ) : (
           <button 
             onClick={mint}
             disabled={isPending || isConfirming}
-            className="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold py-4 rounded-xl transition-all active:scale-95 shadow-[0_0_30px_rgba(219,39,119,0.4)] uppercase tracking-widest disabled:opacity-50 border-t border-white/20"
+            className="w-full bg-orange-600 hover:bg-orange-500 text-black font-bold py-4 transition-all active:translate-y-1 uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed border border-orange-400"
           >
-            {isPending ? 'Confirm in Wallet...' : 'MINT YOURS • 0.00001 ETH'}
+            {isPending ? 'INITIALIZING...' : 'MINT UNIT • 0.00001 ETH'}
           </button>
         )}
         
-        <div className="mt-4 text-[10px] text-zinc-500 uppercase tracking-widest">
-          Secured by Base
+        <div className="mt-6 text-[10px] text-zinc-600 flex gap-4 uppercase">
+           <span>SECURE: BASE</span>
+           <span>//</span>
+           <span>GEN: V3</span>
         </div>
       </div>
     </div>
