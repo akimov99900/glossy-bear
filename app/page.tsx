@@ -1,158 +1,91 @@
 'use client';
 import { useState, useEffect } from 'react';
 import sdk from '@farcaster/frame-sdk';
-import { 
-  WagmiProvider, 
-  createConfig, 
-  http, 
-  useSendTransaction, 
-  useWaitForTransactionReceipt,
-  useAccount, 
-  useConnect,
-  useSwitchChain,
-  useReadContract
-} from 'wagmi';
-import { base } from 'wagmi/chains';
-import { injected } from 'wagmi/connectors'; // ТОЛЬКО INJECTED
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-// КОНФИГУРАЦИЯ БЕЗ ЛИШНИХ SDK
-const config = createConfig({
-  chains: [base],
-  connectors: [injected()], // Только встроенный, никаких popups
-  transports: { [base.id]: http() },
-  ssr: true, 
-});
+// ТВОЙ КОНТРАКТ
+const CONTRACT_ADDRESS = "0x8f305239D8ae9158e9B8E0e179531837C4646568"; 
 
-const queryClient = new QueryClient();
-
-// Твой контракт (проверь адрес!)
-const CONTRACT_ADDRESS = "0x6d3e3e80B479cc51023F52349E6a51021139113a"; 
-
-const CONTRACT_ABI = [
-  { inputs: [], name: "mint", outputs: [], stateMutability: "payable", type: "function" },
-  { inputs: [], name: "totalSupply", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" },
-  { inputs: [], name: "MAX_SUPPLY", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" }
-] as const;
-
-function App() {
-  const { isConnected, chainId } = useAccount();
-  const { connectAsync, connectors } = useConnect();
-  const { switchChainAsync } = useSwitchChain();
-  const { sendTransaction, isPending, data: hash, error: mintError } = useSendTransaction();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
-  
-  const [userFid, setUserFid] = useState('1');
-  const [status, setStatus] = useState('');
-
-  const { data: supply } = useReadContract({
-    address: CONTRACT_ADDRESS,
-    abi: CONTRACT_ABI,
-    functionName: 'totalSupply',
-  });
-
-  const mintedCount = supply ? Number(supply) : 0;
-  const maxSupply = 100;
-  const isSoldOut = mintedCount >= maxSupply;
-  const progressPercent = (mintedCount / maxSupply) * 100;
+export default function Page() {
+  const [status, setStatus] = useState("Ready");
+  const [fid, setFid] = useState("1");
 
   useEffect(() => {
-    const init = async () => {
+    const load = async () => {
       try {
         const context = await sdk.context;
-        if (context?.user?.fid) setUserFid(String(context.user.fid));
+        if(context?.user?.fid) setFid(String(context.user.fid));
         sdk.actions.ready();
-        
-        // Авто-подключение БЕЗ лишнего шума
-        if (!isConnected) {
-            const connector = connectors[0];
-            if (connector) connectAsync({ connector });
-        }
-      } catch (e) { console.error(e); }
+      } catch(e) {}
     };
-    init();
+    load();
   }, []);
 
-  const handleMint = async () => {
-    setStatus("");
-    try {
-      // 1. Подключение (если отвалилось)
-      if (!isConnected) {
-        setStatus("Connecting...");
-        await connectAsync({ connector: connectors[0] });
-      }
-      
-      // 2. Проверка сети
-      if (chainId !== base.id) {
-        setStatus("Switching Network...");
-        await switchChainAsync({ chainId: base.id });
-      }
+  const rawMint = async () => {
+    setStatus("Looking for wallet...");
+    
+    // 1. Ищем кошелек напрямую в браузере (без библиотек)
+    const ethereum = (window as any).ethereum;
 
-      // 3. Минт
-      setStatus("Tx sent...");
-      sendTransaction({
-        to: CONTRACT_ADDRESS,
-        value: BigInt(10000000000000), 
-        data: "0x1249c58b"
+    if (!ethereum) {
+      setStatus("No wallet found! Open in Warpcast or MetaMask app.");
+      return;
+    }
+
+    try {
+      // 2. Запрашиваем доступ
+      setStatus("Connect wallet...");
+      const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+      const account = accounts[0];
+
+      // 3. Формируем транзакцию вручную
+      setStatus("Sending transaction...");
+      
+      // Хеш функции mint() = 0x1249c58b
+      const data = "0x1249c58b"; 
+      // 0.00001 ETH в HEX формате = 0x2386f26fc10000
+      const value = "0x2386f26fc10000"; 
+
+      const txHash = await ethereum.request({
+        method: 'eth_sendTransaction',
+        params: [
+          {
+            from: account,
+            to: CONTRACT_ADDRESS,
+            value: value, 
+            data: data,
+          },
+        ],
       });
-    } catch (e: any) {
-      console.error(e);
-      setStatus(e.message.includes("User rejected") ? "Cancelled" : "Error");
+
+      setStatus("Success! Tx: " + txHash.slice(0, 10));
+      
+    } catch (error: any) {
+      console.error(error);
+      setStatus("Error: " + (error.message || error.code || "Unknown"));
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-[#e0e0e0] font-sans text-black relative">
-      <div className="absolute inset-0 bg-gradient-to-br from-white to-gray-300 pointer-events-none"></div>
-
-      <div className="w-full max-w-md bg-white/90 backdrop-blur-md rounded-[30px] p-8 shadow-2xl border border-white flex flex-col items-center relative z-10">
-        
-        <div className="mb-4 px-3 py-1 bg-black text-white text-[10px] font-bold uppercase tracking-widest rounded-full">Farcaster Exclusive</div>
-        <h1 className="text-4xl font-black mb-2 tracking-tighter text-slate-900 uppercase text-center">CHROME GEN</h1>
-        
-        <div className="relative w-64 h-64 bg-gray-100 rounded-2xl overflow-hidden shadow-inner mb-6 border border-gray-200 flex items-center justify-center">
-             <img src="https://i.postimg.cc/MptNPZCX/ref.jpg" className="w-full h-full object-cover" alt="Ref" />
-             <div className="absolute top-2 right-2 bg-white/80 backdrop-blur px-2 py-1 rounded text-[10px] font-mono font-bold">FID: {userFid}</div>
-        </div>
-
-        <div className="w-full mb-6">
-            <div className="flex justify-between text-xs font-bold mb-1 uppercase tracking-wider">
-                <span>Minted</span>
-                <span>{mintedCount} / 100</span>
-            </div>
-            <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
-                <div className="h-full bg-black" style={{ width: `${progressPercent}%` }}></div>
-            </div>
-        </div>
-
-        {(status || mintError) && (
-            <div className="w-full mb-4 p-2 bg-yellow-100 text-yellow-800 text-[10px] rounded text-center font-mono">
-                {status} {mintError?.message?.slice(0,50)}
-            </div>
-        )}
-
-        {isSuccess ? (
-          <a href={`https://opensea.io/assets/base/${CONTRACT_ADDRESS}`} target="_blank" className="w-full bg-green-600 text-white font-bold py-4 rounded-full text-center uppercase tracking-widest shadow-lg">
-            Success! View on OpenSea
-          </a>
-        ) : (
-          <button 
-            onClick={handleMint}
-            disabled={isSoldOut || isPending}
-            className={`w-full text-white font-bold py-4 rounded-full transition-all active:scale-95 shadow-xl uppercase tracking-widest flex items-center justify-center gap-2 ${isSoldOut ? 'bg-gray-400' : 'bg-black'}`}
-          >
-            {isSoldOut ? 'SOLD OUT' : isPending ? 'Processing...' : 'MINT • 0.00001 ETH'}
-          </button>
-        )}
+    <div className="flex flex-col items-center justify-center h-screen bg-black text-white font-sans p-4 text-center">
+      <h1 className="text-3xl font-bold mb-4 uppercase">Chrome Gen</h1>
+      
+      <img 
+        src="https://i.postimg.cc/MptNPZCX/ref.jpg" 
+        className="w-64 h-64 object-cover rounded-xl mb-4 border border-gray-700"
+      />
+      
+      <div className="mb-6 p-2 bg-gray-900 rounded text-xs font-mono text-yellow-400 border border-gray-700 w-full break-words">
+        LOG: {status}
       </div>
-    </div>
-  );
-}
 
-export default function Page() {
-  return (
-    <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}><App /></QueryClientProvider>
-    </WagmiProvider>
+      <button 
+        onClick={rawMint}
+        className="w-full bg-white text-black font-bold py-4 rounded-full text-xl active:scale-95 transition"
+      >
+        MINT (0.00001 ETH)
+      </button>
+      
+      <div className="mt-4 text-gray-500 text-xs">FID: {fid}</div>
+    </div>
   );
 }
