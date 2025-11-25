@@ -9,25 +9,22 @@ import {
   useWaitForTransactionReceipt,
   useAccount, 
   useConnect,
+  useSwitchChain,
   useReadContract 
 } from 'wagmi';
 import { base } from 'wagmi/chains';
 import { injected, coinbaseWallet } from 'wagmi/connectors';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-// 1. Обновленный конфиг с поддержкой SSR
 const config = createConfig({
   chains: [base],
-  connectors: [
-    injected(),
-    coinbaseWallet({ appName: 'Chrome Bear' }),
-  ],
+  connectors: [injected(), coinbaseWallet({ appName: 'Chrome Bear' })],
   transports: { [base.id]: http() },
-  ssr: true, // Важно для Next.js
+  ssr: true,
 });
-
 const queryClient = new QueryClient();
 
+// АДРЕС КОНТРАКТА
 const CONTRACT_ADDRESS = "0x8f305239D8ae9158e9B8E0e179531837C4646568"; 
 
 const CONTRACT_ABI = [
@@ -37,12 +34,14 @@ const CONTRACT_ABI = [
 ] as const;
 
 function App() {
-  const { isConnected, address } = useAccount();
-  // Получаем список доступных кошельков
-  const { connectAsync, connectors } = useConnect(); 
+  const { isConnected, chainId, address } = useAccount();
+  const { connectAsync, connectors } = useConnect();
+  const { switchChainAsync } = useSwitchChain();
   const { sendTransaction, isPending, data: hash, error: mintError } = useSendTransaction();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+  
   const [userFid, setUserFid] = useState('1');
+  const [statusMsg, setStatusMsg] = useState('');
 
   const { data: nextId } = useReadContract({
     address: CONTRACT_ADDRESS,
@@ -52,7 +51,6 @@ function App() {
 
   const mintedCount = nextId ? Number(nextId) - 1 : 0;
   const maxSupply = 100;
-  const isSoldOut = mintedCount >= maxSupply;
   const progressPercent = (mintedCount / maxSupply) * 100;
 
   useEffect(() => {
@@ -66,42 +64,38 @@ function App() {
     init();
   }, []);
 
-  // ГЛАВНАЯ ФУНКЦИЯ (ИСПРАВЛЕННАЯ)
   const handleAction = async () => {
+    setStatusMsg("");
     try {
-      console.log("Starting action...");
-      
-      // Шаг 1: Если не подключены - подключаемся
+      // 1. Подключение
       if (!isConnected) {
-        // Берем первый доступный кошелек (обычно это Injected в Фаркастере)
-        const connector = connectors[0]; 
-        if (connector) {
-            console.log("Connecting to:", connector.name);
-            await connectAsync({ connector });
-        }
+        setStatusMsg("Connecting wallet...");
+        // Пробуем первый доступный коннектор (Injected)
+        await connectAsync({ connector: connectors[0] });
       }
 
-      // Шаг 2: Ждем небольшую паузу, чтобы Wagmi обновил состояние
-      await new Promise(r => setTimeout(r, 500));
+      // 2. Проверка сети (Важно!)
+      if (chainId !== base.id) {
+        setStatusMsg("Switching to Base network...");
+        await switchChainAsync({ chainId: base.id });
+      }
 
-      // Шаг 3: Теперь точно вызываем минт
-      console.log("Sending transaction...");
+      // 3. Минт
+      setStatusMsg("Sending transaction...");
       sendTransaction({
         to: CONTRACT_ADDRESS,
         value: BigInt(10000000000000), // 0.00001 ETH
         data: "0x1249c58b"
       });
-
-    } catch (e) {
-      console.error("Mint failed:", e);
-      // В реальном приложении тут можно показать тост с ошибкой
+      
+    } catch (e: any) {
+      console.error(e);
+      setStatusMsg(`Error: ${e.message || "Unknown error"}`);
     }
   };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-[#e0e0e0] font-sans text-black relative">
-      <div className="absolute inset-0 bg-gradient-to-br from-white to-gray-300 pointer-events-none"></div>
-
       <div className="w-full max-w-md bg-white/90 backdrop-blur-md rounded-[30px] p-8 shadow-2xl border border-white flex flex-col items-center relative z-10">
         
         <div className="mb-4 px-3 py-1 bg-black text-white text-[10px] font-bold uppercase tracking-widest rounded-full">
@@ -112,11 +106,6 @@ function App() {
           CHROME GEN
         </h1>
         
-        {/* Статус кошелька (для проверки) */}
-        <div className="text-[9px] text-slate-400 mb-4 font-mono">
-           {isConnected ? `CONNECTED: ${address?.slice(0,6)}...` : "READY TO CONNECT"}
-        </div>
-
         <div className="relative w-64 h-64 bg-gray-100 rounded-2xl overflow-hidden shadow-inner mb-6 border border-gray-200 flex items-center justify-center">
              <img src="https://i.postimg.cc/MptNPZCX/ref.jpg" className="w-full h-full object-cover" alt="Ref" />
              <div className="absolute top-2 right-2 bg-white/80 backdrop-blur px-2 py-1 rounded text-[10px] font-mono font-bold">FID: {userFid}</div>
@@ -132,9 +121,10 @@ function App() {
             </div>
         </div>
 
-        {mintError && (
-            <div className="w-full mb-4 p-2 bg-red-100 text-red-600 text-[10px] rounded text-center break-words">
-                {mintError.message.slice(0, 60)}...
+        {/* БЛОК ОТЛАДКИ И ОШИБОК */}
+        {(mintError || statusMsg) && (
+            <div className="w-full mb-4 p-2 bg-yellow-100 text-yellow-800 text-[10px] rounded text-center break-words font-mono border border-yellow-300">
+                {statusMsg} {mintError?.message}
             </div>
         )}
 
@@ -142,17 +132,19 @@ function App() {
           <a href={`https://opensea.io/assets/base/${CONTRACT_ADDRESS}`} target="_blank" className="w-full bg-green-600 text-white font-bold py-4 rounded-full text-center uppercase tracking-widest shadow-lg">
             Success! View on OpenSea
           </a>
-        ) : isSoldOut ? (
-          <button disabled className="w-full bg-gray-400 text-white font-bold py-4 rounded-full cursor-not-allowed">SOLD OUT</button>
         ) : (
           <button 
             onClick={handleAction}
             disabled={isPending || isConfirming}
             className="w-full bg-black text-white font-bold py-4 rounded-full transition-all active:scale-95 shadow-xl uppercase tracking-widest flex items-center justify-center gap-2"
           >
-            {isPending ? 'Confirm in Wallet...' : 'MINT • 0.00001 ETH'}
+            {isPending ? 'Processing...' : 'MINT • 0.00001 ETH'}
           </button>
         )}
+        
+        <div className="mt-4 text-[9px] text-slate-400 font-mono">
+           Net: {chainId === base.id ? "Base ✅" : "Wrong Network ❌"} | Addr: {address ? `${address.slice(0,4)}...` : "None"}
+        </div>
       </div>
     </div>
   );
