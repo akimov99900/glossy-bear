@@ -5,101 +5,117 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const fid = searchParams.get('fid') || '888';
     
-    // Генерируем уникальный цвет кристаллов на основе FID
-    const seed = Number(fid) * 9999;
-    const hue = (seed % 360); 
+    // Генерируем параметры дроида
+    const seed = Number(fid) * 5678;
     
-    // Цвета кристаллов (Swarovski Style)
-    // Base - основной цвет страз
-    // Light - цвет перелива (радужный)
-    const colorBase = `hsl(${hue}, 80%, 60%)`; 
-    const colorDark = `hsl(${hue}, 90%, 35%)`; 
+    // Палитры "Индустриальные"
+    const hues = [45, 200, 25, 0]; // Желтый (как на фото), Стальной, Военный, Красный
+    const selectedHue = hues[seed % hues.length];
+    
+    // Основной цвет краски (потертый)
+    const colorPaint = `hsl(${selectedHue}, 70%, 55%)`; 
+    // Цвет глаз (Голубой или Красный)
+    const eyeHue = (seed % 2 === 0) ? 190 : 0;
+    const colorEye = `hsl(${eyeHue}, 100%, 70%)`;
 
     const svg = `
       <svg width="800" height="800" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <!-- 1. Текстура Кристаллов (NOISE) -->
-          <!-- Это создает эффект тысяч мелких граней -->
-          <filter id="crystalTexture" x="0%" y="0%" width="100%" height="100%">
-            <!-- Создаем шум (зерно) -->
-            <feTurbulence type="fractalNoise" baseFrequency="1.5" numOctaves="3" result="noise"/>
-            <!-- Добавляем контраст, чтобы зерна были четкими как камни -->
-            <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -9" in="noise" result="contrastNoise"/>
-            <!-- Смешиваем шум с цветом медведя -->
-            <feComposite operator="in" in="contrastNoise" in2="SourceGraphic" result="texturedBear"/>
-            <!-- Добавляем свет (Specularity) на грани камней -->
-            <feSpecularLighting in="contrastNoise" surfaceScale="15" specularConstant="1.2" specularExponent="25" lighting-color="#ffffff" result="sparkles">
-                <fePointLight x="-500" y="-500" z="1000"/>
-            </feSpecularLighting>
-            <!-- Накладываем блеск на текстуру -->
-            <feComposite operator="in" in="sparkles" in2="SourceAlpha" result="sparklesClipped"/>
-            <feComposite operator="arithmetic" k1="0" k2="1" k3="1" k4="0" in="texturedBear" in2="sparklesClipped"/>
+          <!-- 1. Текстура РЖАВЧИНЫ и ГРЯЗИ (Самое важное) -->
+          <filter id="rustFilter">
+            <!-- Генерируем крупный шум (вмятины) -->
+            <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="4" result="noise"/>
+            
+            <!-- Освещение рельефа (чтобы выглядело как металл) -->
+            <feDiffuseLighting in="noise" lighting-color="#d9a873" surfaceScale="2" result="lightNoise">
+                <feDistantLight azimuth="45" elevation="60"/>
+            </feDiffuseLighting>
+            
+            <!-- Смешиваем шум с исходным объектом -->
+            <feComposite operator="in" in="lightNoise" in2="SourceGraphic" result="textured"/>
+            <feBlend mode="multiply" in="textured" in2="SourceGraphic"/>
           </filter>
 
-          <!-- 2. Градиент перелива (Iridescence) - как бензин/радуга -->
-          <linearGradient id="rainbowSheen" x1="0%" y1="0%" x2="100%" y2="100%">
-             <stop offset="0%" stop-color="${colorBase}" stop-opacity="1"/>
-             <stop offset="50%" stop-color="${colorDark}" stop-opacity="1"/>
-             <stop offset="100%" stop-color="${colorBase}" stop-opacity="1"/>
-          </linearGradient>
-          
-          <!-- 3. Тень на фоне -->
-           <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
-            <feOffset dx="5" dy="10"/>
-            <feComponentTransfer><feFuncA type="linear" slope="0.4"/></feComponentTransfer>
-            <feMerge>
-                <feMergeNode/>
-                <feMergeNode in="SourceGraphic"/>
-            </feMerge>
+          <!-- 2. Эффект свечения глаз -->
+          <filter id="glow">
+             <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
+             <feMerge>
+                 <feMergeNode in="coloredBlur"/>
+                 <feMergeNode in="SourceGraphic"/>
+             </feMerge>
+          </filter>
+
+          <!-- 3. Граффити-маркер (небрежный) -->
+          <filter id="marker">
+             <feTurbulence type="fractalNoise" baseFrequency="0.1" numOctaves="1" result="noise"/>
+             <feDisplacementMap in="SourceGraphic" in2="noise" scale="5" />
           </filter>
         </defs>
 
-        <!-- Фон: Студийный мрамор -->
-        <radialGradient id="bg" cx="50%" cy="50%" r="70%">
-            <stop offset="0%" stop-color="#f8f9fa"/>
-            <stop offset="100%" stop-color="#dde1e7"/>
+        <!-- Фон: Темный ангар -->
+        <rect width="800" height="800" fill="#111"/>
+        <radialGradient id="spotlight" cx="50%" cy="0%" r="80%">
+            <stop offset="0%" stop-color="#333" stop-opacity="0.4"/>
+            <stop offset="100%" stop-color="#000" stop-opacity="0"/>
         </radialGradient>
-        <rect width="800" height="800" fill="url(#bg)"/>
-        
-        <!-- Пальмовая тень (для стиля как на фото) -->
-        <path d="M0 600 L800 400 L800 800 L0 800 Z" fill="black" opacity="0.05" filter="blur(20px)"/>
+        <rect width="800" height="800" fill="url(#spotlight)"/>
 
-        <!-- МЕДВЕДЬ (Сгруппированный, цельный силуэт) -->
-        <g transform="translate(180, 100) scale(0.85)" filter="url(#dropShadow)">
+        <!-- РОБОТ (Группа с фильтром ржавчины) -->
+        <g transform="translate(150, 50) scale(0.9)" filter="url(#rustFilter)">
             
-            <!-- Группа с текстурой кристаллов -->
-            <g fill="url(#rainbowSheen)" filter="url(#crystalTexture)">
+            <!-- ШЕЯ (Поршни) -->
+            <rect x="230" y="320" width="40" height="60" fill="#333" stroke="#111" stroke-width="2"/>
+            <rect x="240" y="320" width="10" height="60" fill="#555"/> <!-- Кабель -->
+
+            <!-- ТЕЛО (Бронепластина) -->
+            <!-- Основная форма -->
+            <path d="M120 360 L380 360 L420 420 L420 650 L380 700 L120 700 L80 650 L80 420 Z" fill="${colorPaint}" stroke="#222" stroke-width="4"/>
+            
+            <!-- Детали на груди (Люк) -->
+            <circle cx="330" cy="500" r="50" fill="#333" stroke="#222" stroke-width="3"/>
+            <text x="330" y="520" font-family="Arial Black" font-size="40" fill="${colorEye}" text-anchor="middle" opacity="0.5">|||</text>
+            
+            <!-- Царапины/Повреждения (Граффити стиль) -->
+            <path d="M100 450 L150 480 M110 490 L130 460" stroke="#222" stroke-width="3" opacity="0.6"/>
+
+            <!-- ПЛЕЧИ (Шарниры) -->
+            <circle cx="80" cy="420" r="40" fill="#444" stroke="#111" stroke-width="5"/>
+            <circle cx="420" cy="420" r="40" fill="#444" stroke="#111" stroke-width="5"/>
+
+            <!-- РУКИ (Механизмы) -->
+            <rect x="30" y="450" width="50" height="200" fill="#555" stroke="#111" stroke-width="3"/>
+            <rect x="420" y="450" width="50" height="200" fill="#555" stroke="#111" stroke-width="3"/>
+            
+            <!-- Надпись BASE на руке -->
+            <text x="445" y="600" font-family="Courier New" font-weight="bold" font-size="30" fill="#222" transform="rotate(90, 445, 600)" opacity="0.7">BASE</text>
+
+            <!-- ГОЛОВА (Потертая каска) -->
+            <g transform="rotate(-5 250 200)">
+                <!-- Шлем -->
+                <path d="M120 320 L380 320 L380 150 Q380 50 250 50 Q120 50 120 150 Z" fill="${colorPaint}" stroke="#111" stroke-width="5"/>
                 
-                <!-- 1. Уши (Присоединены к голове) -->
-                <circle cx="100" cy="80" r="70" />
-                <circle cx="440" cy="80" r="70" />
+                <!-- Линия стыка пластин -->
+                <line x1="250" y1="50" x2="250" y2="320" stroke="#111" stroke-width="3" opacity="0.5"/>
+                
+                <!-- ГЛАЗА (Светящиеся) -->
+                <g filter="url(#glow)">
+                    <circle cx="190" cy="200" r="45" fill="#111" stroke="#333" stroke-width="5"/>
+                    <circle cx="190" cy="200" r="25" fill="${colorEye}"/>
+                    
+                    <circle cx="310" cy="200" r="45" fill="#111" stroke="#333" stroke-width="5"/>
+                    <circle cx="310" cy="200" r="25" fill="${colorEye}"/>
+                </g>
 
-                <!-- 2. Руки (Свисают вдоль тела, единое целое) -->
-                <!-- Левая -->
-                <path d="M80 280 Q 40 320 40 400 Q 40 480 70 500 Q 100 480 110 400" />
-                <!-- Правая -->
-                <path d="M460 280 Q 500 320 500 400 Q 500 480 470 500 Q 440 480 430 400" />
-
-                <!-- 3. Ноги (Столбики, без разрывов) -->
-                <path d="M160 500 L 160 650 Q 160 700 200 700 L 230 700 Q 270 700 270 650 L 270 500" />
-                <path d="M290 500 L 290 650 Q 290 700 330 700 L 360 700 Q 400 700 400 650 L 400 500" />
-
-                <!-- 4. Тело и Голова (Слиты воедино) -->
-                <!-- Рисуем как одну большую форму матрешки -->
-                <path d="M120 200 
-                         C 120 50 420 50 420 200 
-                         C 420 300 380 300 380 350
-                         C 420 380 420 550 270 550
-                         C 120 550 120 380 160 350
-                         C 160 300 120 300 120 200 Z" />
+                <!-- ГРАФФИТИ НА ЛБУ -->
+                <text x="250" y="120" font-family="Verdana, sans-serif" font-weight="bold" font-size="35" text-anchor="middle" fill="#222" filter="url(#marker)" transform="rotate(2)">
+                   BASE
+                </text>
+                 <text x="320" y="280" font-family="Arial" font-size="20" fill="#222" opacity="0.6" transform="rotate(-10)">#${fid}</text>
             </g>
         </g>
-        
-        <!-- Текст FID (Брендинг) -->
-        <text x="400" y="750" font-family="Arial, sans-serif" font-weight="bold" font-size="18" text-anchor="middle" fill="#aaa" letter-spacing="3">
-            CRYSTAL #${fid}
-        </text>
+
+        <!-- Атмосферная пыль -->
+        <rect width="800" height="800" fill="url(#rustFilter)" opacity="0.1" pointer-events="none"/>
       </svg>
     `.trim();
 
