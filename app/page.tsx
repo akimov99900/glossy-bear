@@ -22,10 +22,9 @@ const config = createConfig({
 });
 const queryClient = new QueryClient();
 
-// !!! ВСТАВЬ НОВЫЙ АДРЕС КОНТРАКТА С ЛИМИТОМ !!!
+// АДРЕС КОНТРАКТА (Убедись, что он правильный/новый!)
 const CONTRACT_ADDRESS = "0x8f305239D8ae9158e9B8E0e179531837C4646568"; 
 
-// ABI - инструкция, как читать счетчик из контракта
 const CONTRACT_ABI = [
   { inputs: [], name: "mint", outputs: [], stateMutability: "payable", type: "function" },
   { inputs: [], name: "nextTokenId", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" },
@@ -39,20 +38,16 @@ function App() {
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
   const [userFid, setUserFid] = useState('1');
 
-  // Читаем текущий номер токена из блокчейна
   const { data: nextId } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: CONTRACT_ABI,
     functionName: 'nextTokenId',
-    query: { refetchInterval: 5000 } // Обновлять каждые 5 сек
+    query: { refetchInterval: 5000 }
   });
 
-  // Считаем сколько сминчено (nextTokenId начинается с 1, значит сминчено nextId - 1)
   const mintedCount = nextId ? Number(nextId) - 1 : 0;
   const maxSupply = 100;
   const isSoldOut = mintedCount >= maxSupply;
-  
-  // Считаем процент для прогресс-бара
   const progressPercent = (mintedCount / maxSupply) * 100;
 
   useEffect(() => {
@@ -82,7 +77,6 @@ function App() {
 
       <div className="w-full max-w-md bg-white/90 backdrop-blur-md rounded-[30px] p-8 shadow-2xl border border-white flex flex-col items-center relative z-10">
         
-        {/* Бэйдж Эксклюзивности */}
         <div className="mb-4 px-3 py-1 bg-black text-white text-[10px] font-bold uppercase tracking-widest rounded-full">
           Exclusive Farcaster Drop
         </div>
@@ -92,25 +86,24 @@ function App() {
         </h1>
         
         <p className="text-slate-500 text-sm text-center mb-6 leading-snug">
-          Unique generative liquid metal art.<br/>
-          <span className="font-bold text-slate-800">Shape:</span> Your Profile Picture.<br/>
-          <span className="font-bold text-slate-800">Material:</span> Your FID.
+          Liquid Metal Collection.<br/>
+          <span className="font-bold text-slate-800">Material:</span> Unique to your FID.
         </p>
         
-        {/* Картинка */}
+        {/* КАРТИНКА (Теперь статичная) */}
         <div className="relative w-64 h-64 bg-gray-100 rounded-2xl overflow-hidden shadow-inner mb-6 border border-gray-200 flex items-center justify-center">
              <img 
-                src={`/api/image?fid=${userFid}`} 
-                className="w-full h-full object-contain mix-blend-multiply hover:scale-105 transition duration-500" 
-                alt="Chrome Bear" 
+                src="https://i.postimg.cc/MptNPZCX/ref.jpg" 
+                className="w-full h-full object-cover hover:scale-105 transition duration-500" 
+                alt="Chrome Bear Reference" 
              />
-             {/* Метка ID */}
+             {/* Метка ID остается, чтобы персонализировать опыт */}
              <div className="absolute top-2 right-2 bg-white/80 backdrop-blur px-2 py-1 rounded text-[10px] font-mono font-bold">
-               FID: {userFid}
+               YOUR FID: {userFid}
              </div>
         </div>
 
-        {/* СЧЕТЧИК (Progress Bar) */}
+        {/* Прогресс Бар */}
         <div className="w-full mb-6">
             <div className="flex justify-between text-xs font-bold mb-1 uppercase tracking-wider">
                 <span>Minted</span>
@@ -126,7 +119,6 @@ function App() {
             </div>
         </div>
 
-        {/* Логика кнопок */}
         {isSuccess ? (
           <a href={`https://opensea.io/assets/base/${CONTRACT_ADDRESS}`} target="_blank" className="w-full bg-green-600 text-white font-bold py-4 rounded-full text-center uppercase tracking-widest shadow-lg hover:bg-green-500 transition">
             Success! View on OpenSea
