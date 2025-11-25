@@ -13,22 +13,20 @@ import {
   useReadContract
 } from 'wagmi';
 import { base } from 'wagmi/chains';
-import { injected, coinbaseWallet } from 'wagmi/connectors';
+import { injected } from 'wagmi/connectors'; // ТОЛЬКО INJECTED
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+// КОНФИГУРАЦИЯ БЕЗ ЛИШНИХ SDK
 const config = createConfig({
   chains: [base],
-  connectors: [
-    coinbaseWallet({ appName: 'Chrome Bear', preference: 'smartWalletOnly' }),
-    injected(), 
-  ],
+  connectors: [injected()], // Только встроенный, никаких popups
   transports: { [base.id]: http() },
   ssr: true, 
 });
 
 const queryClient = new QueryClient();
 
-// !!! ВСТАВЬ СЮДА НОВЫЙ АДРЕС !!!
+// Твой контракт (проверь адрес!)
 const CONTRACT_ADDRESS = "0x6d3e3e80B479cc51023F52349E6a51021139113a"; 
 
 const CONTRACT_ABI = [
@@ -38,16 +36,15 @@ const CONTRACT_ABI = [
 ] as const;
 
 function App() {
-  const { isConnected, address, chainId } = useAccount();
+  const { isConnected, chainId } = useAccount();
   const { connectAsync, connectors } = useConnect();
   const { switchChainAsync } = useSwitchChain();
   const { sendTransaction, isPending, data: hash, error: mintError } = useSendTransaction();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
   
   const [userFid, setUserFid] = useState('1');
-  const [debugMsg, setDebugMsg] = useState('');
+  const [status, setStatus] = useState('');
 
-  // Читаем totalSupply (сколько уже куплено)
   const { data: supply } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: CONTRACT_ABI,
@@ -65,40 +62,51 @@ function App() {
         const context = await sdk.context;
         if (context?.user?.fid) setUserFid(String(context.user.fid));
         sdk.actions.ready();
-      } catch (e: any) { console.log(e); }
+        
+        // Авто-подключение БЕЗ лишнего шума
+        if (!isConnected) {
+            const connector = connectors[0];
+            if (connector) connectAsync({ connector });
+        }
+      } catch (e) { console.error(e); }
     };
     init();
   }, []);
 
-  const handleMainButton = async () => {
-    setDebugMsg(""); 
+  const handleMint = async () => {
+    setStatus("");
     try {
+      // 1. Подключение (если отвалилось)
       if (!isConnected) {
-        setDebugMsg("Connecting...");
-        const connector = connectors[0]; 
-        await connectAsync({ connector });
-        return; 
+        setStatus("Connecting...");
+        await connectAsync({ connector: connectors[0] });
       }
+      
+      // 2. Проверка сети
       if (chainId !== base.id) {
-        setDebugMsg("Switching to Base...");
+        setStatus("Switching Network...");
         await switchChainAsync({ chainId: base.id });
-        return;
       }
-      setDebugMsg("Transaction sent...");
+
+      // 3. Минт
+      setStatus("Tx sent...");
       sendTransaction({
         to: CONTRACT_ADDRESS,
-        value: BigInt(10000000000000), // 0.00001 ETH
-        data: "0x1249c58b" // mint()
+        value: BigInt(10000000000000), 
+        data: "0x1249c58b"
       });
     } catch (e: any) {
       console.error(e);
-      setDebugMsg(e.message.includes("User rejected") ? "Cancelled" : `Error: ${e.message.slice(0, 50)}`);
+      setStatus(e.message.includes("User rejected") ? "Cancelled" : "Error");
     }
   };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-[#e0e0e0] font-sans text-black relative">
+      <div className="absolute inset-0 bg-gradient-to-br from-white to-gray-300 pointer-events-none"></div>
+
       <div className="w-full max-w-md bg-white/90 backdrop-blur-md rounded-[30px] p-8 shadow-2xl border border-white flex flex-col items-center relative z-10">
+        
         <div className="mb-4 px-3 py-1 bg-black text-white text-[10px] font-bold uppercase tracking-widest rounded-full">Farcaster Exclusive</div>
         <h1 className="text-4xl font-black mb-2 tracking-tighter text-slate-900 uppercase text-center">CHROME GEN</h1>
         
@@ -117,9 +125,9 @@ function App() {
             </div>
         </div>
 
-        {(debugMsg || mintError) && (
-            <div className="w-full mb-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-800 text-[10px] rounded text-center font-mono">
-                {debugMsg || mintError?.message}
+        {(status || mintError) && (
+            <div className="w-full mb-4 p-2 bg-yellow-100 text-yellow-800 text-[10px] rounded text-center font-mono">
+                {status} {mintError?.message?.slice(0,50)}
             </div>
         )}
 
@@ -129,11 +137,11 @@ function App() {
           </a>
         ) : (
           <button 
-            onClick={handleMainButton}
-            disabled={isSoldOut}
-            className={`w-full text-white font-bold py-4 rounded-full transition-all active:scale-95 shadow-xl uppercase tracking-widest flex items-center justify-center gap-2 ${isSoldOut ? 'bg-gray-400 cursor-not-allowed' : 'bg-black'}`}
+            onClick={handleMint}
+            disabled={isSoldOut || isPending}
+            className={`w-full text-white font-bold py-4 rounded-full transition-all active:scale-95 shadow-xl uppercase tracking-widest flex items-center justify-center gap-2 ${isSoldOut ? 'bg-gray-400' : 'bg-black'}`}
           >
-            {isSoldOut ? 'SOLD OUT' : isPending ? 'Processing...' : isConnected ? 'MINT • 0.00001 ETH' : 'CONNECT & MINT'}
+            {isSoldOut ? 'SOLD OUT' : isPending ? 'Processing...' : 'MINT • 0.00001 ETH'}
           </button>
         )}
       </div>
