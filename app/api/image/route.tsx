@@ -1,34 +1,39 @@
 import { NextResponse } from 'next/server';
 
-// Разрешаем функции работать дольше (до 60 сек), так как AI думает
-export const maxDuration = 60; 
+// Разрешаем функции работать до 60 секунд (AI думает пару секунд, но запас нужен)
+export const maxDuration = 60;
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const fid = searchParams.get('fid') || '1';
 
-    // 1. Выбираем уникальный стиль для юзера
+    // 1. Определяем стиль на основе FID
+    // (Чтобы у одного и того же человека всегда был один цвет)
     const styles = [
-      'Pink Rose Quartz', 'Sapphire Blue', 'Gold', 'Emerald Green', 
-      'Black Obsidian', 'Holographic Rainbow', 'Silver Chrome', 'Ruby Red'
+      'Pink Rose Quartz', 
+      'Deep Blue Sapphire', 
+      'Gold', 
+      'Emerald Green', 
+      'Black Onyx', 
+      'Holographic Rainbow', 
+      'Silver Diamond', 
+      'Ruby Red'
     ];
-    // Математика: FID 123 всегда будет давать один и тот же цвет
     const userStyle = styles[Number(fid) % styles.length];
 
-    // 2. Промпт для нейросети (Swarovski Style)
-    const prompt = `A full body shot of a BearBrick toy made of ${userStyle} Swarovski crystals. 
-    High fashion luxury product photography, macro lens, sparkling gemstones, diamond texture. 
-    Studio lighting, dark grey background, reflection on the floor. 
-    The bear is glossy, expensive, photorealistic 8k. 
-    Cute rounded ears, distinct limbs.`;
+    // 2. Описание для нейросети
+    const prompt = `A 3D render of a BearBrick toy covered in ${userStyle} Swarovski crystals. 
+    Exact shape and pose as the reference image. 
+    High fashion luxury product photography, sparkling gemstones, diamond texture. 
+    Studio lighting, neutral background. Glossy, expensive, photorealistic 8k.`;
 
-    // Проверка ключа (чтобы ты видел ошибку, если забыл шаг 2)
+    // Проверяем, есть ли ключ Replicate
     if (!process.env.REPLICATE_API_TOKEN) {
-      return new NextResponse("Error: REPLICATE_API_TOKEN is missing in Vercel Settings", { status: 500 });
+      return new NextResponse("Error: Token missing in Vercel", { status: 500 });
     }
 
-    // 3. Отправляем задачу в Replicate (Flux-Schnell - самая быстрая модель)
+    // 3. Отправляем задачу в Replicate
     const response = await fetch("https://api.replicate.com/v1/predictions", {
       method: "POST",
       headers: {
@@ -36,28 +41,35 @@ export async function GET(request: Request) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        // Версия модели Flux-Schnell
+        // Модель FLUX.1-schnell (Быстрая и качественная)
         version: "5bf243909ad9473b96bf423b47334863346549241b711e2f3d61a8a29b634812",
         input: {
-        image: `https://i.postimg.cc/MptNPZCX/ref.jpg`,
+          prompt: prompt,
+          // ТВОЯ КАРТИНКА ВСТАВЛЕНА СЮДА:
+          image: "https://i.postimg.cc/MptNPZCX/ref.jpg", 
+          // Сила влияния фото (0.6 = сохраняем форму, меняем материал)
+          prompt_strength: 0.6,
+          output_format: "png",
+          go_fast: true
         },
       }),
     });
 
     if (response.status !== 201) {
       const error = await response.text();
+      console.error("Replicate Error:", error);
       return new NextResponse("AI Error: " + error, { status: 500 });
     }
 
     const prediction = await response.json();
     
-    // 4. Ждем результат (Polling)
+    // 4. Ждем результат (проверяем готовность)
     let imageUrl = null;
     const checkUrl = prediction.urls.get;
     
-    // Проверяем готовность 10 раз (до 10-15 секунд)
-    for (let i = 0; i < 15; i++) {
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Ждем 1 сек
+    // Пробуем 20 раз по 1 секунде
+    for (let i = 0; i < 20; i++) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         const checkRes = await fetch(checkUrl, {
             headers: { Authorization: `Token ${process.env.REPLICATE_API_TOKEN}` }
@@ -66,7 +78,7 @@ export async function GET(request: Request) {
         
         if (statusData.status === "succeeded") {
             imageUrl = statusData.output[0];
-            break; // Готово!
+            break;
         }
         if (statusData.status === "failed") {
             return new NextResponse("AI Generation Failed", { status: 500 });
@@ -74,10 +86,10 @@ export async function GET(request: Request) {
     }
 
     if (!imageUrl) {
-        return new NextResponse("Timeout: Image took too long to generate", { status: 504 });
+        return new NextResponse("Timeout: Generation took too long", { status: 504 });
     }
 
-    // 5. Перенаправляем пользователя на готовую картинку
+    // 5. Перенаправляем на готовую картинку
     return NextResponse.redirect(imageUrl);
 
   } catch (e) {
