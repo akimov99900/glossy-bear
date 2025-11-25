@@ -12,17 +12,20 @@ import {
   useReadContract 
 } from 'wagmi';
 import { base } from 'wagmi/chains';
-import { injected } from 'wagmi/connectors';
+import { injected, coinbaseWallet } from 'wagmi/connectors';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const config = createConfig({
   chains: [base],
-  connectors: [injected()],
+  connectors: [
+    injected(), 
+    coinbaseWallet({ appName: 'Chrome Bear' }) 
+  ],
   transports: { [base.id]: http() },
 });
 const queryClient = new QueryClient();
 
-// Твой контракт (сверь его!)
+// Твой адрес (Проверь, что он верный!)
 const CONTRACT_ADDRESS = "0x8f305239D8ae9158e9B8E0e179531837C4646568"; 
 
 const CONTRACT_ABI = [
@@ -32,8 +35,8 @@ const CONTRACT_ABI = [
 ] as const;
 
 function App() {
-  const { isConnected, address } = useAccount();
-  const { connect } = useConnect();
+  const { isConnected } = useAccount();
+  const { connectAsync } = useConnect(); // Используем Async, чтобы ждать подключения
   const { sendTransaction, isPending, data: hash, error: mintError } = useSendTransaction();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
   const [userFid, setUserFid] = useState('1');
@@ -55,26 +58,32 @@ function App() {
         const context = await sdk.context;
         if (context?.user?.fid) setUserFid(String(context.user.fid));
         sdk.actions.ready();
-        
-        // Пытаемся подключиться автоматически, но аккуратно
-        // Если не выйдет, юзер нажмет кнопку сам
       } catch (e) { console.error(e); }
     };
     init();
   }, []);
 
-  // Функция подключения
-  const handleConnect = () => {
-    connect({ connector: injected() });
-  };
-
-  // Функция минта
-  const handleMint = () => {
-    sendTransaction({
-      to: CONTRACT_ADDRESS,
-      value: BigInt(10000000000000), // 0.00001 ETH
-      data: "0x1249c58b"
-    });
+  // ГЛАВНАЯ ФУНКЦИЯ: ДЕЛАЕТ ВСЁ СРАЗУ
+  const handleAction = async () => {
+    try {
+      // 1. Если не подключены - подключаемся силой
+      if (!isConnected) {
+        try {
+            await connectAsync({ connector: injected() });
+        } catch (e) {
+            console.log("Connection retry or already connected");
+        }
+      }
+      
+      // 2. Сразу после этого (или если уже были подключены) - МИНТИМ
+      sendTransaction({
+        to: CONTRACT_ADDRESS,
+        value: BigInt(10000000000000), // 0.00001 ETH
+        data: "0x1249c58b"
+      });
+    } catch (e) {
+      console.error("Action failed:", e);
+    }
   };
 
   return (
@@ -91,17 +100,11 @@ function App() {
           CHROME GEN
         </h1>
         
-        {/* Скрываем технический блок, если всё работает, или показываем статус */}
-        <div className="text-[9px] text-slate-400 mb-4 font-mono">
-           {isConnected ? `CONNECTED: ${address?.slice(0,6)}...` : "WALLET NOT CONNECTED"}
-        </div>
-
         <div className="relative w-64 h-64 bg-gray-100 rounded-2xl overflow-hidden shadow-inner mb-6 border border-gray-200 flex items-center justify-center">
              <img src="https://i.postimg.cc/MptNPZCX/ref.jpg" className="w-full h-full object-cover" alt="Ref" />
              <div className="absolute top-2 right-2 bg-white/80 backdrop-blur px-2 py-1 rounded text-[10px] font-mono font-bold">FID: {userFid}</div>
         </div>
 
-        {/* СЧЕТЧИК */}
         <div className="w-full mb-6">
             <div className="flex justify-between text-xs font-bold mb-1 uppercase tracking-wider">
                 <span>Minted</span>
@@ -112,36 +115,26 @@ function App() {
             </div>
         </div>
 
-        {/* ОШИБКА */}
         {mintError && (
-            <div className="w-full mb-4 p-2 bg-red-100 text-red-600 text-[10px] rounded text-center">
-                {mintError.message.includes("User rejected") ? "Transaction Cancelled" : "Error: Check Balance or Network"}
+            <div className="w-full mb-4 p-2 bg-red-100 text-red-600 text-[10px] rounded text-center break-words">
+                {mintError.message.slice(0, 50)}...
             </div>
         )}
 
-        {/* ЛОГИКА ГЛАВНОЙ КНОПКИ */}
         {isSuccess ? (
           <a href={`https://opensea.io/assets/base/${CONTRACT_ADDRESS}`} target="_blank" className="w-full bg-green-600 text-white font-bold py-4 rounded-full text-center uppercase tracking-widest shadow-lg">
-            Success!
+            Success! View on OpenSea
           </a>
         ) : isSoldOut ? (
           <button disabled className="w-full bg-gray-400 text-white font-bold py-4 rounded-full cursor-not-allowed">SOLD OUT</button>
-        ) : !isConnected ? (
-          // КНОПКА ПОДКЛЮЧЕНИЯ (Если кошелек не найден)
-          <button 
-            onClick={handleConnect}
-            className="w-full bg-blue-600 text-white font-bold py-4 rounded-full transition-all active:scale-95 shadow-xl uppercase tracking-widest"
-          >
-            CONNECT WALLET
-          </button>
         ) : (
-          // КНОПКА МИНТА (Если подключен)
+          // ЕДИНАЯ КНОПКА ДЛЯ ВСЕГО
           <button 
-            onClick={handleMint}
+            onClick={handleAction}
             disabled={isPending || isConfirming}
             className="w-full bg-black text-white font-bold py-4 rounded-full transition-all active:scale-95 shadow-xl uppercase tracking-widest flex items-center justify-center gap-2"
           >
-            {isPending ? 'Processing...' : 'MINT • 0.00001 ETH'}
+            {isPending ? 'Confirm in Wallet...' : 'MINT • 0.00001 ETH'}
           </button>
         )}
       </div>
