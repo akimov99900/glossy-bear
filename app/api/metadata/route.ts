@@ -3,21 +3,16 @@ import { NextResponse } from 'next/server';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id') || "1";
-  
-  // Автоматически определяем домен сайта
-  const host = request.headers.get('host');
-  const protocol = host?.includes('localhost') ? 'http' : 'https';
-  const baseUrl = `${protocol}://${host}`;
 
   return NextResponse.json({
     name: `Chrome Bear #${id}`,
-    description: "Liquid Metal series. High-gloss reflective art toy generated on Base.",
-    image: `${baseUrl}/api/image?fid=${id}`,
-    external_url: baseUrl,
+    description: "Exclusive Liquid Metal Collection on Base. Minted via Farcaster.",
+    // ВАЖНО: Мы ставим прямую ссылку на фото. Это работает 100% безотказно.
+    image: "https://i.postimg.cc/MptNPZCX/ref.jpg", 
     attributes: [
-      { trait_type: "Material", value: "Liquid Metal" },
+      { trait_type: "Material", value: "Liquid Chrome" },
       { trait_type: "FID", value: id },
-      { trait_type: "Collection", value: "Chrome Gen" }
+      { trait_type: "Drop", value: "Gen 1" }
     ]
   });
 }
